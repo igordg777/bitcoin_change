@@ -1,0 +1,186 @@
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Биткоин API</title>
+    <script
+        src="https://cdn.anychart.com/releases/v8/js/anychart-base.min.js?hcode=c11e6e3cfefb406e8ce8d99fa8368d33"></script>
+    <script
+        src="https://cdn.anychart.com/releases/v8/js/anychart-ui.min.js?hcode=c11e6e3cfefb406e8ce8d99fa8368d33"></script>
+    <script
+        src="https://cdn.anychart.com/releases/v8/js/anychart-exports.min.js?hcode=c11e6e3cfefb406e8ce8d99fa8368d33"></script>
+    <link href="https://cdn.anychart.com/releases/v8/css/anychart-ui.min.css?hcode=c11e6e3cfefb406e8ce8d99fa8368d33"
+        type="text/css" rel="stylesheet">
+    <link
+        href="https://cdn.anychart.com/releases/v8/fonts/css/anychart-font.min.css?hcode=c11e6e3cfefb406e8ce8d99fa8368d33"
+        type="text/css" rel="stylesheet">
+    <link rel="stylesheet" href="./styles/style.css">
+    <link rel="stylesheet" id="styleType" href="./styles/style_light.css">
+</head>
+</head>
+
+<body>
+
+    <h1 align='center'>Динамика изменения курса биткоина</h1>
+    <div id="theme">
+        <img src="./images/moon.png" width="30px" alt="moon">
+
+        <fieldset>
+            <legend class="mt-1"></legend>
+            <div class="form-check form-switch">
+                <label class="form-check-label" for="flexSwitchCheckDefault">
+                </label>
+                <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault">
+
+            </div>
+
+        </fieldset>
+    </div>
+    <div id="oneday"></div>
+    <div id="range">
+        <h2>Для просмотра графика выберите даты:</h2>
+        <input type="date" id="date1">
+        <input type="date" id="date2">
+        <button type="button" class="btn btn-secondary" onclick="location.reload();">Сбросить</button>
+
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="1.js"></script>
+    <div id="container"></div>
+    <div class="arrow">🠕</div>
+    <script>
+
+        let arr = []
+
+        $(document).ready(function () {
+            getRate();
+            //getHistoryRate();
+            document.getElementById('container').innerHTML = '';
+            $('input[type="date"]').on('input', getHistoryRate);
+        });
+
+        function getRate() {
+            // https://api.coindesk.com/v1/bpi/currentprice.json
+            $.get(
+                "https://api.coindesk.com/v1/bpi/currentprice.json",
+                function (data) {
+                    data = JSON.parse(data);
+                    console.log(data);
+                    document.getElementById('oneday').innerHTML = `<h2>Курс биткоина на данный момент (${data.time.updateduk}):</h2><br><h2 style="color: white;-webkit-text-stroke: 2px black;">${data.bpi.USD.rate_float} ${data.bpi.USD.code} </h2><br> <h2 style="color: white;-webkit-text-stroke: 2px black;">${data.bpi.EUR.rate_float} ${data.bpi.EUR.code}</h2>`
+                }
+            );
+        }
+        let count = 0
+
+        let flagStyle = 'first';
+        document.getElementById('flexSwitchCheckDefault').onchange = () => {
+            if (flagStyle === 'first') {
+                document.getElementById('styleType').href = "./styles/style_black.css"
+                flagStyle = 'second';
+            } else if (flagStyle === 'second') {
+                document.getElementById('styleType').href = "./styles/style_light.css"
+                flagStyle = 'first';
+            }
+        }
+
+        function getHistoryRate() {
+            // https://api.coindesk.com/v1/bpi/currentprice.json
+            $.get(
+                "https://api.coindesk.com/v1/bpi/historical/close.json",
+                {
+                    "start": $('#date1').val(),
+                    "end": $('#date2').val()
+                },
+                function (data) {
+
+                    data = JSON.parse(data);
+                    // console.log(data);
+                    let obj = data.bpi
+                    console.log(obj)
+
+                    if (count < 1) {
+                        for (key in data.bpi) {
+                            let arr2 = [];
+                            arr2.push(key);
+                            arr2.push(data.bpi[key])
+                            arr.push(arr2)
+                            // console.log(arr2);
+                        }
+                        anychart.onDocumentReady(function () {
+                            // create data set on our data
+                            var dataSet = anychart.data.set(arr);
+
+                            // map data for the first series, take x from the zero column and value from the first column of data set
+                            var seriesData = dataSet.mapAs({ 'x': 0, 'value': 1 });
+
+                            // create line chart
+                            var chart = anychart.line();
+
+                            chart.background().fill({
+                                keys: ["black", '#C13A87'],
+                                angle: 130,
+                            });
+                            // turn on chart animation
+                            chart.animation(true);
+                            // turn on the crosshair
+                            chart.crosshair()
+                                .enabled(true)
+                                .yLabel({
+                                    'enabled': false
+                                })
+                                .yStroke(null);
+
+                            // set chart title text settings
+                            chart.title('Step Line Chart (forward)');
+
+                            // create stepLine series with mapped data
+                            chart.stepLine()
+                                .data(seriesData)
+                                .name('Value')
+                                .stepDirection('forward');
+
+                            // set container id for the chart
+                            chart.container('container');
+                            // initiate chart drawing
+                            chart.draw();
+                        });
+                    }
+                    count += 1;
+                    if (arr.length > 1) {
+                        window.scrollBy(0, document.body.scrollHeight)
+                    }
+                }
+            );
+            count = 0;
+        }
+
+        window.addEventListener('scroll', function () {
+
+            // Получаем координаты каждого из элементов относительно границ окна
+            // let dist = document.querySelector(".arrow").getBoundingClientRect();
+            // Получаем высоту окна со скролом
+            // console.log(window.pageYOffset)
+            // Добавляем условие проверки
+            if (window.pageYOffset > 350) {
+                document.querySelector(".arrow").style.display = "block"
+            } else {
+                document.querySelector(".arrow").style.display = "none"
+
+            }
+        });
+
+        document.querySelector(".arrow").onclick = () => {
+            window.scrollTo(0, 0)
+        }
+
+
+
+    </script>
+
+</body>
+
+</html>
